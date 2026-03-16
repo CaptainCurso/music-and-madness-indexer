@@ -70,6 +70,7 @@ This project now includes a small static site in:
 
 - `/Users/nicholasmcdowell/Developer/music and madness indexer/docs/index.html`
 - `/Users/nicholasmcdowell/Developer/music and madness indexer/docs/privacy.html`
+- `/Users/nicholasmcdowell/Developer/music and madness indexer/docs/terms.html`
 - `/Users/nicholasmcdowell/Developer/music and madness indexer/docs/oauth/callback.html`
 
 Those files are meant for GitHub Pages, which is GitHub's static website hosting feature.
@@ -82,6 +83,7 @@ If your GitHub username is `CaptainCurso`, the final URLs will be:
 
 - Website: `https://captaincurso.github.io/music-and-madness-indexer/`
 - Privacy policy: `https://captaincurso.github.io/music-and-madness-indexer/privacy.html`
+- Terms of use: `https://captaincurso.github.io/music-and-madness-indexer/terms.html`
 - Redirect URL: `https://captaincurso.github.io/music-and-madness-indexer/oauth/callback.html`
 
 ### Publish steps
