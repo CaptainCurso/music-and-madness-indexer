@@ -97,44 +97,73 @@ async function crawlWiki(
   rootPageId: string,
   excludedPageIds: Set<string>,
 ): Promise<CrawledPage[]> {
-  const rootPage = await notion.retrievePage(rootPageId);
-  console.log(`Scanning root page: ${getPageTitle(rootPage)}`);
-
   const crawledPages: CrawledPage[] = [];
   const visitedPageIds = new Set<string>();
   const visitedContainerIds = new Set<string>();
-  const rootBlocks = await safelyListBlockChildren(notion, rootPageId, "root page");
+  let nextProgressLogAt = 25;
+  await crawlRootContainer();
 
-  let inlineRootPages = 0;
+  return crawledPages.sort(comparePagesByPath);
 
-  for (const block of rootBlocks) {
-    if (isChildPageBlock(block)) {
-      const pageId = normalizeNotionId(block.id);
-      const title = getChildPageTitle(block);
-      const path = buildPath("", title);
-      const sectionCount = await crawlPageSubtree(pageId, title, path);
+  async function crawlRootContainer(): Promise<void> {
+    try {
+      const rootPage = await notion.retrievePage(rootPageId);
+      console.log(`Scanning root page: ${getPageTitle(rootPage)}`);
+      await crawlRootPageBlocks();
+      return;
+    } catch (error) {
+      if (!isWrongObjectTypeError(error, "database")) {
+        throw error;
+      }
+    }
+
+    const rootDatabase = await notion.retrieveDatabase(rootPageId);
+    console.log(`Scanning root database: ${getDatabaseLabel(rootDatabase)}`);
+    const topLevelPages = await loadRootDatabasePages(notion, rootDatabase);
+
+    for (const page of topLevelPages) {
+      const path = buildPath("", page.title);
+      console.log(`Starting top-level section: ${path}`);
+      const sectionCount = await crawlPageSubtree(page.id, page.title, path);
 
       if (sectionCount > 0) {
         console.log(`Section ${path}: ${sectionCount} page(s)`);
       }
-
-      continue;
-    }
-
-    if (block.type === "child_database") {
-      continue;
-    }
-
-    if (block.has_children) {
-      inlineRootPages += await crawlNestedBlocks(block.id, "");
     }
   }
 
-  if (inlineRootPages > 0) {
-    console.log(`Root inline blocks: ${inlineRootPages} page(s)`);
-  }
+  async function crawlRootPageBlocks(): Promise<void> {
+    const rootBlocks = await safelyListBlockChildren(notion, rootPageId, "root page");
+    let inlineRootPages = 0;
 
-  return crawledPages.sort(comparePagesByPath);
+    for (const block of rootBlocks) {
+      if (isChildPageBlock(block)) {
+        const pageId = normalizeNotionId(block.id);
+        const title = getChildPageTitle(block);
+        const path = buildPath("", title);
+        console.log(`Starting top-level section: ${path}`);
+        const sectionCount = await crawlPageSubtree(pageId, title, path);
+
+        if (sectionCount > 0) {
+          console.log(`Section ${path}: ${sectionCount} page(s)`);
+        }
+
+        continue;
+      }
+
+      if (block.type === "child_database") {
+        continue;
+      }
+
+      if (block.has_children) {
+        inlineRootPages += await crawlNestedBlocks(block.id, "");
+      }
+    }
+
+    if (inlineRootPages > 0) {
+      console.log(`Root inline blocks: ${inlineRootPages} page(s)`);
+    }
+  }
 
   async function crawlPageSubtree(pageId: string, title: string, path: string): Promise<number> {
     if (excludedPageIds.has(pageId)) {
@@ -155,6 +184,7 @@ async function crawlWiki(
     visitedPageIds.add(pageId);
     visitedContainerIds.add(pageId);
     crawledPages.push(buildCrawledPage(pageId, title, path));
+    logCrawlProgress(path);
 
     const descendantCount = await crawlListedBlocks(pageBlocks, path);
     return 1 + descendantCount;
@@ -207,6 +237,16 @@ async function crawlWiki(
       }
 
       throw error;
+    }
+  }
+
+  function logCrawlProgress(path: string): void {
+    if (crawledPages.length === 1 || crawledPages.length >= nextProgressLogAt) {
+      console.log(`Crawled pages so far: ${crawledPages.length} (latest: ${path})`);
+
+      while (crawledPages.length >= nextProgressLogAt) {
+        nextProgressLogAt += 25;
+      }
     }
   }
 }
@@ -337,6 +377,44 @@ async function safelyListBlockChildren(
   }
 }
 
+async function loadRootDatabasePages(
+  notion: NotionApiClient,
+  database: { id: string; data_sources?: Array<{ id: string; name: string }> },
+): Promise<Array<{ id: string; title: string }>> {
+  const dataSourceId = resolveSingleDataSourceId(database);
+  const rootDatabaseId = normalizeNotionId(database.id);
+  const pages: Array<{ id: string; title: string }> = [];
+  let nextCursor: string | undefined;
+
+  do {
+    const response = await notion.queryDataSource(dataSourceId, nextCursor);
+
+    for (const page of response.results) {
+      if (page.object !== "page" || page.archived || page.in_trash) {
+        continue;
+      }
+
+      if (page.parent?.type !== "database_id" || !page.parent.database_id) {
+        continue;
+      }
+
+      if (normalizeNotionId(page.parent.database_id) !== rootDatabaseId) {
+        continue;
+      }
+
+      pages.push({
+        id: normalizeNotionId(page.id),
+        title: getPageTitle(page),
+      });
+    }
+
+    nextCursor = response.has_more ? response.next_cursor ?? undefined : undefined;
+    console.log(`Root database pages loaded so far: ${pages.length}`);
+  } while (nextCursor);
+
+  return pages.sort((left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id));
+}
+
 function resolveSingleDataSourceId(database: { data_sources?: Array<{ id: string; name: string }> }): string {
   const dataSources = database.data_sources ?? [];
 
@@ -352,6 +430,19 @@ function resolveSingleDataSourceId(database: { data_sources?: Array<{ id: string
   throw new Error(
     `The catalog database has multiple data sources. Set NOTION_CATALOG_DATA_SOURCE_URL_OR_ID to one of these IDs: ${summary}`,
   );
+}
+
+function isWrongObjectTypeError(error: unknown, expectedObjectType: string): boolean {
+  return (
+    error instanceof NotionApiError
+    && error.status === 400
+    && error.message.includes(`is a ${expectedObjectType}, not a page`)
+  );
+}
+
+function getDatabaseLabel(database: { id: string; data_sources?: Array<{ id: string; name: string }> }): string {
+  const firstNamedDataSource = (database.data_sources ?? []).find((dataSource) => dataSource.name?.trim());
+  return firstNamedDataSource?.name?.trim() || database.id;
 }
 
 function assertUrlPropertyExists(

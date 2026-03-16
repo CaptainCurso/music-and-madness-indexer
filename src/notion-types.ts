@@ -13,6 +13,11 @@ export interface NotionPage {
   object: "page";
   id: string;
   url: string;
+  parent?: {
+    type: string;
+    database_id?: string;
+    page_id?: string;
+  };
   archived?: boolean;
   in_trash?: boolean;
   properties: Record<string, PagePropertyValue>;
