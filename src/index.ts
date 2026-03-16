@@ -1,5 +1,10 @@
 import { loadConfig, normalizeNotionId, tryExtractNotionId } from "./config";
-import { NotionApiClient } from "./notion-api";
+import { NotionApiClient, NotionApiError } from "./notion-api";
+import {
+  hasStoredRefreshToken,
+  isOAuthConfigured,
+  refreshStoredAccessToken,
+} from "./notion-oauth";
 import type { DataSourcePropertySchema, NotionBlock, NotionPage } from "./notion-types";
 import {
   buildCrawledPage,
@@ -11,6 +16,21 @@ import {
 } from "./queue-blocks";
 
 async function main(): Promise<void> {
+  await ensureOAuthAccessTokenReady();
+
+  try {
+    await runScan();
+  } catch (error) {
+    if (await shouldRetryAfterOAuthRefresh(error)) {
+      await runScan();
+      return;
+    }
+
+    throw error;
+  }
+}
+
+async function runScan(): Promise<void> {
   const config = loadConfig();
   const notion = new NotionApiClient(config.notionToken, config.notionApiVersion);
 
@@ -36,6 +56,40 @@ async function main(): Promise<void> {
 
   await rewriteWorkQueue(notion, config.workQueuePageId, report, config.queueStartHeading);
   console.log(`Work queue updated successfully: ${config.workQueuePageId}`);
+}
+
+async function ensureOAuthAccessTokenReady(): Promise<void> {
+  if (!isOAuthConfigured()) {
+    return;
+  }
+
+  if (process.env.NOTION_ACCESS_TOKEN?.trim()) {
+    return;
+  }
+
+  if (hasStoredRefreshToken()) {
+    console.log("Refreshing stored Notion OAuth access token before the scan.");
+    await refreshStoredAccessToken();
+    return;
+  }
+
+  throw new Error(
+    "No NOTION_ACCESS_TOKEN is configured yet. Open the authorization URL and run `npm run oauth:exchange -- --code=<code>` first.",
+  );
+}
+
+async function shouldRetryAfterOAuthRefresh(error: unknown): Promise<boolean> {
+  if (!(error instanceof NotionApiError) || error.status !== 401) {
+    return false;
+  }
+
+  if (!isOAuthConfigured() || !hasStoredRefreshToken()) {
+    return false;
+  }
+
+  console.log("Stored OAuth access token was rejected. Refreshing and retrying once.");
+  await refreshStoredAccessToken();
+  return true;
 }
 
 async function crawlWiki(

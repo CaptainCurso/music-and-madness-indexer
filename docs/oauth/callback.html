@@ -24,11 +24,21 @@
       <section class="legal-card">
         <p>
           If you were sent here during an authorization flow, the redirect completed and you can return
-          to the app or close this tab.
+          to the app after copying the authorization code below.
         </p>
 
         <div class="code-panel">
-          <p class="code-label">Query string received by the browser:</p>
+          <p class="code-label">Authorization code:</p>
+          <pre id="code-output">No authorization code found yet.</pre>
+        </div>
+
+        <div class="code-panel">
+          <p class="code-label">Next terminal command:</p>
+          <pre id="next-command">npm run oauth:exchange -- --code=&lt;paste-code-here&gt;</pre>
+        </div>
+
+        <div class="code-panel">
+          <p class="code-label">Full query string:</p>
           <pre id="query-output">No query parameters found.</pre>
         </div>
 
@@ -39,10 +49,27 @@
     </main>
 
     <script>
-      const output = document.getElementById("query-output");
+      const codeOutput = document.getElementById("code-output");
+      const nextCommand = document.getElementById("next-command");
+      const queryOutput = document.getElementById("query-output");
       const query = window.location.search;
-      if (query && output) {
-        output.textContent = query;
+      const params = new URLSearchParams(query);
+      const code = params.get("code");
+      const error = params.get("error");
+      const errorDescription = params.get("error_description");
+
+      if (query && queryOutput) {
+        queryOutput.textContent = query;
+      }
+
+      if (error && codeOutput) {
+        codeOutput.textContent = errorDescription ? `${error}: ${errorDescription}` : error;
+      } else if (code && codeOutput) {
+        codeOutput.textContent = code;
+      }
+
+      if (code && nextCommand) {
+        nextCommand.textContent = `npm run oauth:exchange -- --code=${code}`;
       }
     </script>
   </body>

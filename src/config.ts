@@ -15,8 +15,8 @@ export interface ScannerConfig {
 }
 
 export function loadConfig(): ScannerConfig {
-  const notionToken = requireEnv("NOTION_TOKEN");
-  const notionApiVersion = process.env.NOTION_API_VERSION?.trim() || "2026-03-11";
+  const notionToken = resolveNotionBearerToken();
+  const notionApiVersion = getNotionApiVersion();
   const rootPageId = extractNotionId(requireEnv("NOTION_ROOT_PAGE_URL_OR_ID"));
   const catalogDatabaseId = extractNotionId(requireEnv("NOTION_CATALOG_DATABASE_URL_OR_ID"));
   const catalogDataSourceRaw = process.env.NOTION_CATALOG_DATA_SOURCE_URL_OR_ID?.trim();
@@ -39,6 +39,26 @@ export function loadConfig(): ScannerConfig {
     sourcePageUrlPropertyName: process.env.SOURCE_PAGE_URL_PROPERTY_NAME?.trim() || "Source Page URL",
     queueStartHeading: process.env.QUEUE_START_HEADING?.trim() || "QUEUE START",
   };
+}
+
+export function getNotionApiVersion(): string {
+  return process.env.NOTION_API_VERSION?.trim() || "2026-03-11";
+}
+
+export function resolveNotionBearerToken(): string {
+  const accessToken = process.env.NOTION_ACCESS_TOKEN?.trim();
+
+  if (accessToken) {
+    return accessToken;
+  }
+
+  if (isOAuthModeConfigured()) {
+    throw new Error(
+      "No NOTION_ACCESS_TOKEN is configured yet. Complete the OAuth flow first with `npm run oauth:exchange -- --code=<code>`.",
+    );
+  }
+
+  return requireEnv("NOTION_TOKEN");
 }
 
 function requireEnv(name: string): string {
@@ -96,4 +116,13 @@ export function normalizeNotionId(value: string): string {
 
 export function buildNotionPageUrl(pageId: string): string {
   return `https://www.notion.so/${pageId.replace(/-/g, "")}`;
+}
+
+export function isOAuthModeConfigured(): boolean {
+  return Boolean(
+    process.env.OAUTH_CLIENT_ID?.trim()
+      || process.env.OAUTH_REDIRECT_URI?.trim()
+      || process.env.NOTION_AUTH_URL?.trim()
+      || process.env.OAUTH_CLIENT_SECRET?.trim(),
+  );
 }
