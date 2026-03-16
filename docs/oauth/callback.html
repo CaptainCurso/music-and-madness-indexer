@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Authorization Complete | Music and Madness Scanner</title>
+    <meta
+      name="description"
+      content="OAuth redirect target for the Music and Madness Scanner integration."
+    />
+    <link rel="stylesheet" href="../site.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero-card">
+        <p class="eyebrow">Redirect Page</p>
+        <h1>Authorization Step Complete</h1>
+        <p class="lead">
+          This page exists to satisfy redirect URL requirements for the Music and Madness Scanner
+          integration.
+        </p>
+      </section>
+
+      <section class="legal-card">
+        <p>
+          If you were sent here during an authorization flow, the redirect completed and you can return
+          to the app or close this tab.
+        </p>
+
+        <div class="code-panel">
+          <p class="code-label">Query string received by the browser:</p>
+          <pre id="query-output">No query parameters found.</pre>
+        </div>
+
+        <p class="back-link">
+          <a href="../index.html">Return to the project page</a>
+        </p>
+      </section>
+    </main>
+
+    <script>
+      const output = document.getElementById("query-output");
+      const query = window.location.search;
+      if (query && output) {
+        output.textContent = query;
+      }
+    </script>
+  </body>
+</html>

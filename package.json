@@ -1,0 +1,22 @@
+{
+  "name": "music-and-madness-indexer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Scan the Music and Madness wiki in Notion, compare it to the catalog database, and write a work queue page.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "scan": "npm run build && node dist/index.js",
+    "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.1",
+    "typescript": "^5.8.3"
+  }
+}
