@@ -154,6 +154,16 @@ What it does: compiles the TypeScript files into `/Users/nicholasmcdowell/Develo
 
 Risk: medium. It reads from Notion and rewrites the content of the configured Scanner Work Queue page.
 
+For the nightly automation or a fresh worktree, use:
+
+```bash
+npm run scan:nightly
+```
+
+What it does: runs a preflight check, which is a quick setup check before the real work starts. It makes sure this worktree has local dependencies installed and that Notion credentials are available through either `.env` or shell environment variables. If those checks pass, it runs `npm run scan`.
+
+Risk: medium. Once the preflight checks pass, it performs the same scan and queue-page rewrite as `npm run scan`.
+
 In public OAuth mode, `npm run scan` uses `NOTION_ACCESS_TOKEN`. If that access token has expired and `NOTION_REFRESH_TOKEN` is available, the scanner will refresh it once and retry automatically.
 
 If you want a compiled JavaScript build first:

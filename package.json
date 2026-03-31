@@ -10,7 +10,7 @@
     "oauth:exchange": "npm run build && node dist/oauth.js --exchange",
     "oauth:refresh": "npm run build && node dist/oauth.js --refresh",
     "scan": "npm run build && node dist/index.js",
-    "scan:nightly": "npm run scan",
+    "scan:nightly": "node scripts/run-nightly.mjs",
     "start": "node dist/index.js"
   },
   "engines": {
