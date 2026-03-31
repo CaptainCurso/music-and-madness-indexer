@@ -267,8 +267,14 @@ async function loadCatalogRows(
 
   const rows: CatalogRow[] = [];
   let nextCursor: string | undefined;
+  let lastLoggedCount = -1;
+  const seenCursors = new Set<string>();
 
   do {
+    if (nextCursor) {
+      assertCursorAdvances(seenCursors, nextCursor, `catalog rows for data source ${dataSourceId}`);
+    }
+
     const response = await notion.queryDataSource(dataSourceId, nextCursor);
 
     for (const page of response.results) {
@@ -291,7 +297,11 @@ async function loadCatalogRows(
     }
 
     nextCursor = response.has_more ? response.next_cursor ?? undefined : undefined;
-    console.log(`Catalog rows loaded so far: ${rows.length}`);
+
+    if (rows.length !== lastLoggedCount || !nextCursor) {
+      console.log(`Catalog rows loaded so far: ${rows.length}`);
+      lastLoggedCount = rows.length;
+    }
   } while (nextCursor);
 
   return rows.sort(compareRowsByTitle);
@@ -385,8 +395,14 @@ async function loadRootDatabasePages(
   const rootDatabaseId = normalizeNotionId(database.id);
   const pages: Array<{ id: string; title: string }> = [];
   let nextCursor: string | undefined;
+  let lastLoggedCount = -1;
+  const seenCursors = new Set<string>();
 
   do {
+    if (nextCursor) {
+      assertCursorAdvances(seenCursors, nextCursor, `root database pages for ${rootDatabaseId}`);
+    }
+
     const response = await notion.queryDataSource(dataSourceId, nextCursor);
 
     for (const page of response.results) {
@@ -409,7 +425,11 @@ async function loadRootDatabasePages(
     }
 
     nextCursor = response.has_more ? response.next_cursor ?? undefined : undefined;
-    console.log(`Root database pages loaded so far: ${pages.length}`);
+
+    if (pages.length !== lastLoggedCount || !nextCursor) {
+      console.log(`Root database pages loaded so far: ${pages.length}`);
+      lastLoggedCount = pages.length;
+    }
   } while (nextCursor);
 
   return pages.sort((left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id));
@@ -506,6 +526,14 @@ function comparePagesByPath(left: CrawledPage, right: CrawledPage): number {
 
 function compareRowsByTitle(left: CatalogRow, right: CatalogRow): number {
   return left.title.localeCompare(right.title) || left.id.localeCompare(right.id);
+}
+
+function assertCursorAdvances(seenCursors: Set<string>, cursor: string, label: string): void {
+  if (seenCursors.has(cursor)) {
+    throw new Error(`Notion pagination cursor repeated while loading ${label}. Stopping to avoid an infinite loop.`);
+  }
+
+  seenCursors.add(cursor);
 }
 
 main().catch((error: unknown) => {

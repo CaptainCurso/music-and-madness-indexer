@@ -71,8 +71,13 @@ export class NotionApiClient {
   async listAllBlockChildren(blockId: string): Promise<NotionBlock[]> {
     const results: NotionBlock[] = [];
     let nextCursor: string | undefined;
+    const seenCursors = new Set<string>();
 
     do {
+      if (nextCursor) {
+        assertCursorAdvances(seenCursors, nextCursor, `block children for ${blockId}`);
+      }
+
       const response = await this.listBlockChildren(blockId, nextCursor);
       results.push(...response.results);
       nextCursor = response.has_more ? response.next_cursor ?? undefined : undefined;
@@ -203,4 +208,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function assertCursorAdvances(seenCursors: Set<string>, cursor: string, label: string): void {
+  if (seenCursors.has(cursor)) {
+    throw new Error(`Notion pagination cursor repeated while loading ${label}. Stopping to avoid an infinite loop.`);
+  }
+
+  seenCursors.add(cursor);
 }
