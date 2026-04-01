@@ -298,7 +298,7 @@ async function loadCatalogRows(
 
     nextCursor = response.has_more ? response.next_cursor ?? undefined : undefined;
 
-    if (rows.length !== lastLoggedCount || !nextCursor) {
+    if (rows.length !== lastLoggedCount) {
       console.log(`Catalog rows loaded so far: ${rows.length}`);
       lastLoggedCount = rows.length;
     }
@@ -426,7 +426,7 @@ async function loadRootDatabasePages(
 
     nextCursor = response.has_more ? response.next_cursor ?? undefined : undefined;
 
-    if (pages.length !== lastLoggedCount || !nextCursor) {
+    if (pages.length !== lastLoggedCount) {
       console.log(`Root database pages loaded so far: ${pages.length}`);
       lastLoggedCount = pages.length;
     }
