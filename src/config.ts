@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
+import { getEnvFilePath } from "./env-file";
 
-dotenv.config();
+dotenv.config({ path: getEnvFilePath() });
 
 export interface ScannerConfig {
   notionToken: string;

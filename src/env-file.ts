@@ -1,8 +1,18 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export function getEnvFilePath(): string {
+export function getDefaultEnvFilePath(): string {
   return path.resolve(process.cwd(), ".env");
+}
+
+export function getEnvFilePath(): string {
+  const configuredEnvFilePath = process.env.SCANNER_ENV_FILE?.trim();
+
+  if (configuredEnvFilePath) {
+    return path.resolve(configuredEnvFilePath);
+  }
+
+  return getDefaultEnvFilePath();
 }
 
 export function upsertEnvValues(values: Record<string, string>): void {

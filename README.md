@@ -164,6 +164,11 @@ What it does: runs a preflight check, which is a quick setup check before the re
 
 Risk: medium. Once the preflight checks pass, it performs the same scan and queue-page rewrite as `npm run scan`.
 
+If you run the nightly command from a git worktree, it will try to reuse the main checkout's `.env` file and `node_modules` folder automatically when this worktree does not have its own copies yet.
+
+Advanced option:
+- Set `SCANNER_ENV_FILE` if you want the scanner and OAuth helper to read and write tokens in a specific `.env` file path instead of the default `.env` in the current folder.
+
 In public OAuth mode, `npm run scan` uses `NOTION_ACCESS_TOKEN`. If that access token has expired and `NOTION_REFRESH_TOKEN` is available, the scanner will refresh it once and retry automatically.
 
 If you want a compiled JavaScript build first:
